@@ -7,10 +7,10 @@ authors = [
     { name = "Johannes Baumgartl", email = "johannes.baumgartl@hs-esslingen.de" }
 ]
 dependencies = [
-    "langchain>=0.2.6",
-    "langchain-openai>=0.1.14",
-    "langchain_community>=0.2.14",
-    "langchain-ollama>=0.1.2",
+    "langchain==0.2.15",
+    "langchain-openai==0.1.14",
+    "langchain_community==0.2.15",
+    "langchain-ollama==0.1.3",
     "pydantic>=2.8.2",
     "pydantic-settings>=2.3.4",
     "python-dotenv>=1.0.1",
@@ -19,13 +19,13 @@ dependencies = [
     "jupyter>=1.0.0",
     "ollama>=0.3.1",
     "chromadb>=0.5.3",
-    "langchain-chroma>=0.1.3",
+    "langchain-chroma==0.1.3",
     "pypdf>=4.3.1",
     "streamlit>=1.42.0",
     "debugpy>=1.8.12"
 ]
 readme = "README.md"
-requires-python = ">= 3.11"
+requires-python = ">= 3.11, <3.13"
 
 [tool.rye]
 managed = true
