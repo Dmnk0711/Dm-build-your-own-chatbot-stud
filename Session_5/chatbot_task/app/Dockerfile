@@ -1,5 +1,5 @@
 # Use Python 3.11 slim as base
-FROM python:3.11.10
+FROM --platform=linux/amd64 python:3.11.10
 
 # Set working directory
 WORKDIR /app
