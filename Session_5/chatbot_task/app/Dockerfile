@@ -1,7 +1,7 @@
 # Use Python 3.11 slim as base
 FROM --platform=linux/amd64 python:3.11.10
 
-# Set working directory
+# Set working directory 
 WORKDIR /app
 
 # Install system dependencies
