@@ -50,7 +50,7 @@ services:
     ports:
       - 11434:11434
     volumes:
-      - ../../container_cache/ollama/models:/data/models/ollama/models
+      - ../../container_cache/ollama:/root/.ollama
     container_name: ollama
     tty: true
     entrypoint: ["/bin/bash", "-c"]

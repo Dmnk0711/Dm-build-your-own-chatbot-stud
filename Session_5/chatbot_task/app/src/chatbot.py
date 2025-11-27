@@ -58,7 +58,10 @@ class CustomChatBot:
             self._pull_embedding_model()
 
         # Task: initialize the embedding model
-        self.embedding_function = ...
+        self.embedding_function = OllamaEmbeddings(
+            model=EMBEDDING_MODEL,
+            base_url=f"http://{OLLAMA_HOST_NAME}:11434",
+        )
 
         # Initialize the ChromaDB client
         self.client = self._initialize_chroma_client()
@@ -72,10 +75,10 @@ class CustomChatBot:
             self._index_data_to_vector_db()
 
         # Task: Initialize the document retriever
-        self.retriever = ...
+        self.retriever = self.vector_db.as_retriever(search_kwargs={"k": 4})
 
         # Task: Initialize the large language model (LLM) from Ollama
-        self.llm = ...
+        self.llm = ChatOllama(model=MODEL_NAME,base_url=f"http://{OLLAMA_HOST_NAME}:11434")
 
         # Set up the retrieval-augmented generation (RAG) pipeline
         self.qa_rag_chain = self._initialize_qa_rag_chain()
@@ -100,7 +103,10 @@ class CustomChatBot:
         logger.info("Initialize chroma db client.")
 
         # Task: Initilaize chromadb http client
-        return ...
+        return chromadb.HttpClient(
+            host=CHROMA_HOST_NAME,
+            port=8000
+        )
 
     def _initialize_vector_db(self) -> Chroma:
         """
@@ -112,7 +118,11 @@ class CustomChatBot:
         logger.info("Initialize chroma vector db.")
 
         # Task initialize langchain chromadb object with chromadb http client and embedding function
-        return ...
+        return Chroma(
+            client=self.client,
+            collection_name="documents",
+            embedding_function=self.embedding_function
+        )
 
     def _index_data_to_vector_db(self):
 
@@ -156,13 +166,21 @@ class CustomChatBot:
         logger.info("Initialize rag chain.")
 
         # Task: Define prompt
-        prompt_template = ...
+        prompt_template = """Answer the question based on the following context:
+
+        {context}
+
+Question: {question}"""
 
         # Task: Initialize prompt langchain prompt template
-        rag_prompt = ...
+        rag_prompt = ChatPromptTemplate.from_template(prompt_template)
 
         # Task: Build the RAG pipeline using the retriever and LLM
-        return ...
+        return ({"context": self.retriever | self._format_docs, "question": RunnablePassthrough()}
+            | rag_prompt
+            | self.llm
+            | StrOutputParser()
+        )
 
     def _format_docs(self, docs: List[Document]) -> str:
         """
@@ -190,8 +208,14 @@ class CustomChatBot:
         try:
             async for event in self.qa_rag_chain.astream_events(question, version="v2"):
                     # Task: Filter stream events to get chunk which can be returned to the streamlit interface
-                    ...
-                    yield chunk
+                    if isinstance(event, dict) and event.get("event") == "on_chain_stream":
+                        data = event.get("data", {})
+                        chunk = data.get("chunk")
+                        if chunk is None:
+                            continue
+                        text = getattr(chunk, "content", None) or str(chunk)
+                        if text:
+                            yield text
         except Exception as e:
             logger.error(f"Error in stream_answer: {e}", exc_info=True)
             raise
