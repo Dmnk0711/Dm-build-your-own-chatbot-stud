@@ -19,12 +19,14 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+logger.info(f"INDEX_DATA={INDEX_DATA}, PULL_EMBEDDING_MODEL={PULL_EMBEDDING_MODEL}")
 # Initialize chatbot instance (avoid reloading)
 if "bot" not in st.session_state:
-    st.session_state["bot"] = CustomChatBot(index_data=bool(int(INDEX_DATA)), pull_embedding_model=bool(int(PULL_EMBEDDING_MODEL)))
+    st.session_state["bot"] = CustomChatBot(index_data=True, 
+                                            pull_embedding_model=False)
 
 # Streamlit UI setup
-st.set_page_config(page_title="ChatDoc", page_icon="📄")
+st.set_page_config(page_title="Phishinggpt", page_icon="📄")
 st.header("Chat with your Document")
 
 # Initialize session state

@@ -25,6 +25,8 @@ CHROMA_HOST_NAME = os.environ.get("CHROMA_HOST_NAME", "localhost")
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "bge-m3")
 MODEL_NAME = os.environ.get("MODEL_NAME", "llama3.2:1B")
 PDF_DOC_PATH = os.environ.get("PDF_DOC_PATH", "src/AI_Book.pdf")
+CHROMA_COLLECTION_NAME = os.environ.get("CHROMA_COLLECTION_NAME", "AI_Book")
+
 
 logging.basicConfig(
     level=logging.INFO,  # Change to DEBUG for more details
@@ -101,28 +103,55 @@ class CustomChatBot:
             chromadb.HttpClient: A client used to communicate with ChromaDB.
         """ 
         logger.info("Initialize chroma db client.")
+        logger.info(f"Connecting to Chroma at host={CHROMA_HOST_NAME}, port=8000")
 
-        # Task: Initilaize chromadb http client
-        return chromadb.HttpClient(
+        client = chromadb.HttpClient(
             host=CHROMA_HOST_NAME,
             port=8000
         )
 
+        # 🔍 Debug: Welche Collections gibt es überhaupt?
+        try:
+            collections = client.list_collections()
+            logger.info(f"Found {len(collections)} collections in Chroma:")
+            for c in collections:
+                logger.info(f"  - name={c.name}, metadata={getattr(c, 'metadata', None)}")
+        except Exception as e:
+            logger.error(f"Error while listing collections: {e}", exc_info=True)
+
+        return client
+    
+
     def _initialize_vector_db(self) -> Chroma:
         """
         Initialize and return a Chroma vector database using the HTTP client.
-
-        Returns:
-            Chroma: A vector database instance connected to the document collection in ChromaDB.
         """
         logger.info("Initialize chroma vector db.")
+        logger.info(f"Using Chroma collection: {CHROMA_COLLECTION_NAME}")
 
-        # Task initialize langchain chromadb object with chromadb http client and embedding function
-        return Chroma(
+        vector_db = Chroma(
             client=self.client,
-            collection_name="documents",
+            collection_name=CHROMA_COLLECTION_NAME,
             embedding_function=self.embedding_function
         )
+
+        try:
+            existing = vector_db.get(limit=5)
+            logger.info(
+                f"Existing docs in collection '{CHROMA_COLLECTION_NAME}': "
+                f"ids={existing.get('ids')}, "
+                f"metadatas={existing.get('metadatas')}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Error while inspecting collection '{CHROMA_COLLECTION_NAME}': {e}",
+                exc_info=True
+            )
+
+        return vector_db
+
+
+
 
     def _index_data_to_vector_db(self):
 
@@ -166,11 +195,20 @@ class CustomChatBot:
         logger.info("Initialize rag chain.")
 
         # Task: Define prompt
-        prompt_template = """Answer the question based on the following context:
+        prompt_template = """You are a helpful assistant that answers questions 
+    ONLY based on the provided context from the document AI_Book.pdf.
 
-        {context}
+    - Use ONLY information from the context.
+    - If the answer is not clearly in the context, reply exactly:
+      "I don't know based on the document."
 
-Question: {question}"""
+Context:
+{context}
+
+Question: {question}
+
+Answer in max. 3–4 sentences, in your own words."""
+
 
         # Task: Initialize prompt langchain prompt template
         rag_prompt = ChatPromptTemplate.from_template(prompt_template)
@@ -196,26 +234,14 @@ Question: {question}"""
         
     async def astream(self, question: str):
         """
-        Handle a user query asynchronously by running the question through the RAG pipeline and stream the answer.
-
-        Args:
-            question (str): The user's question as a string.
-
-        Yields:
-            str: The generated answer from the model, streamed chunk by chunk.
+        Stream only the final answer text from the RAG chain.
         """
         logger.info("Streaming RAG chain response.")
         try:
-            async for event in self.qa_rag_chain.astream_events(question, version="v2"):
-                    # Task: Filter stream events to get chunk which can be returned to the streamlit interface
-                    if isinstance(event, dict) and event.get("event") == "on_chain_stream":
-                        data = event.get("data", {})
-                        chunk = data.get("chunk")
-                        if chunk is None:
-                            continue
-                        text = getattr(chunk, "content", None) or str(chunk)
-                        if text:
-                            yield text
+            # qa_rag_chain endet mit StrOutputParser -> liefert direkt Strings
+            async for chunk in self.qa_rag_chain.astream(question):
+                if chunk:
+                    yield chunk
         except Exception as e:
             logger.error(f"Error in stream_answer: {e}", exc_info=True)
             raise
