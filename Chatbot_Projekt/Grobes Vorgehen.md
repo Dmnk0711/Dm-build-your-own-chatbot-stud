@@ -97,3 +97,10 @@ services:
 
 -------------------------------------------------
 
+Jetzt	LoL-Version
+AI_Book.pdf	Patchnotes (JSON / Markdown / HTML)
+Buch-Wissen	Champion / Item / System Changes
+statische Quelle	versionierte Patches
+neutraler Prompt	LoL-Experten-Prompt
+
+-------------------------------------------------
