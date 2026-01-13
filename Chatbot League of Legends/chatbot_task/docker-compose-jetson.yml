@@ -1,0 +1,73 @@
+version: '3'
+
+services:
+
+  chatbot:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+      - "5678:5678"
+    container_name: chatbot
+    environment:
+      - INDEX_DATA=0
+      - MODEL_NAME=llama3.2:1B
+      - EMBEDDING_MODEL=bge-m3
+      - PULL_EMBEDDING_MODEL=0
+      - OLLAMA_HOST_NAME=ollama
+      - CHROMA_HOST_NAME=chroma
+      - PDF_DOC_PATH=/app/src/AI_Book.pdf
+    depends_on:
+      chroma:
+        condition: service_healthy
+    networks:
+      - app-network
+    volumes:
+      - ./app:/app
+
+  chroma:
+    image: chromadb/chroma:0.5.13
+    volumes:
+      - ../../container_cache/chroma:/chroma/chroma
+    ports:
+      - "8000:8000"
+    container_name: chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=./chroma/chroma
+    healthcheck: 
+        test: curl localhost:8000/api/v1/heartbeat || exit 1
+        interval: 10s
+        retries: 2
+        start_period: 5s
+        timeout: 10s
+    networks:
+      - app-network
+
+  ollama:
+    image: makoit13/ollama:r36.4.0
+    ports:
+      - 11434:11434
+    volumes:
+      - ../../container_cache/ollama/models:/data/models/ollama/models
+    container_name: ollama
+    tty: true
+    entrypoint: ["/bin/bash", "-c"]
+    command: ["( ollama serve & sleep 5; ollama run llama3.2:1B )"]
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - app-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+networks:
+  app-network:
+    driver: bridge
