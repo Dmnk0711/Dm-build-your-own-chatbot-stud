@@ -1,0 +1,96 @@
+# Dokumentation: League of Legends Patch-Chatbot (Lokal-Setup)
+
+## 1. Funktionsweise & Fähigkeiten
+
+Der Bot ist ein spezialisiertes **RAG-System (Retrieval-Augmented Generation)**. Er liest nicht einfach nur aus einer statischen KI-Logik, sondern greift auf echtes "Wissen" in Form von JSON-Dateien zu.
+
+* **Aktueller Funktionsumfang:**
+* Verarbeitung von Patchnotes (z. B. Champion-Änderungen aus Patch 14.2).
+* Semantische Suche: Der Bot versteht, dass "Was wurde an Ahri gemacht?" die gleichen Daten braucht wie "Ahri Änderungen".
+* Antwort-Generierung: Die KI (Llama3/Mistral) formuliert aus den gefundenen Daten eine menschliche Antwort.
+* **Lokaler Fokus:** Das gesamte System läuft ohne Cloud-Kosten auf deinem eigenen Rechner.
+
+
+
+## 2. System-Architektur (Lokal)
+
+Das System besteht aus drei Hauptkomponenten, die lokal miteinander kommunizieren:
+
+| Komponente | Technologie | Aufgabe |
+| --- | --- | --- |
+| **Frontend** | Streamlit | Benutzeroberfläche im Browser. |
+| **Vektordatenbank** | ChromaDB | Speichert die Patchnotes als "Vektoren" (Zahlenwerte) für die Suche. |
+| **KI-Engine** | Ollama | Erstellt die Embeddings (Suche) und die finale Antwort (LLM). |
+
+**Datenfluss:**
+
+1. **Ingest:** JSON -> Ollama (Embedding) -> ChromaDB (Speichern).
+2. **Abfrage:** User-Frage -> ChromaDB (Suche) -> Kontext + Frage -> Ollama -> Antwort.
+
+---
+
+## 3. How-To Start (Anleitung für morgen)
+
+Folge diesen Schritten exakt in der **PowerShell**, um das System zu starten.
+
+### Schritt 1: Vorbereitung (WICHTIG)
+
+Stelle sicher, dass **Ollama** gestartet ist (Symbol in der Taskleiste bei der Uhr).
+
+### Schritt 2: In das Projektverzeichnis wechseln
+
+Öffne die PowerShell und navigiere zum Hauptordner:
+
+```powershell
+cd "C:\Users\Dominik\Dm-build-your-own-chatbot-stud\Chatbot League of Legends\chatbot_task"
+
+```
+
+### Schritt 3: Datenbank aktualisieren (nur bei neuen Daten nötig)
+
+Falls du die JSON geändert hast oder sichergehen willst, dass die DB voll ist:
+
+```powershell
+py "app/src/ingest/ingest_patchnotes.py"
+
+```
+
+### Schritt 4: Den Chatbot starten
+
+Starte die Weboberfläche:
+
+```powershell
+py -m streamlit run "app/main.py"
+
+```
+
+*Der Browser öffnet sich automatisch unter `http://localhost:8501`.*
+
+---
+
+## 4. Fehlerquellen & Lösungen (Troubleshooting)
+
+| Problem | Ursache | Lösung |
+| --- | --- | --- |
+| `NotFoundError: Collection [patchnotes] does not exist` | Ingest wurde nicht ausgeführt oder Pfad ist falsch. | Führe das Ingest-Skript aus Schritt 3 erneut aus. Prüfe den `CHROMA_PATH` in beiden Dateien. |
+| `ConnectionRefusedError` | Ollama läuft nicht. | Starte die Ollama-App auf deinem PC. |
+| `File not exist: app/main.py` | Du bist nicht im Ordner `chatbot_task`. | Prüfe mit `pwd` deinen Pfad. Du musst in `...\chatbot_task` sein. |
+| Bot antwortet "Ich weiß es nicht" | ChromaDB ist leer oder Embedding-Modell ist falsch. | Lösche den Ordner `chroma_db` manuell und starte das Ingest-Skript neu. |
+
+---
+
+## 5. Ausblick: Nächste Schritte
+
+Aktuell müssen wir die JSON-Daten manuell pflegen. Um ein echtes Profi-Tool daraus zu machen, wäre das der nächste logische Schritt:
+
+### Der "Patch-Scraper"
+
+Statt die Daten händisch in die JSON zu kopieren, schreiben wir ein Skript, das:
+
+1. Die offizielle **League of Legends Website** (oder Fan-Wikis) aufruft.
+2. Die neuesten Änderungen automatisch ausliest (**Web Scraping** mit `BeautifulSoup`).
+3. Die Daten direkt in die `ingest_patchnotes.py` füttert.
+
+**Ziel:** Ein Klick, und der Bot hat das Wissen des neuesten Patches, der erst vor 5 Minuten erschienen ist.
+
+---

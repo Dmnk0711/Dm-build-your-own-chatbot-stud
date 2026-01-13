@@ -1,0 +1,13 @@
+{
+  "patch": "14.2",
+  "champions": {
+    "Ahri": [
+      "Q damage increased from 40-120 to 45-125",
+      "Cooldown reduced by 1 second"
+    ],
+    "Zed": [
+      "R cooldown increased",
+      "Base armor reduced"
+    ]
+  }
+}
