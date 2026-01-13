@@ -65,7 +65,6 @@ if user_query := st.chat_input(placeholder="Ask me anything!"):
     with st.chat_message("assistant"):
         with st.spinner("Searching for information in your documents and generating response..."):
             try:
-                # 👇 NEU: synchrone RAG-Abfrage
                 answer = st.session_state["bot"].ask(user_query)
             except Exception as e:
                 logger.error(f"Error processing query: {e}", exc_info=True)
