@@ -78,3 +78,31 @@ Was fehlt :
 
 Loggen der Antworten
 Einbinden Riot API für fachwörter
+vorgehen logger :
+Dashboard-Komponente: Ein separates Streamlit-Tab, das nur für Admins sichtbar ist und Diagramme (Plotly/Streamlit Charts) über die meistgesuchten Champions anzeigt.
+
+Feedback-Loop: Ein "War das hilfreich?"-Button direkt unter der Bot-Antwort. Das ist der wertvollste Datenpunkt für die Evaluation der RAG-Qualität.
+
+Anonymisierung: Ein Modul, das sicherstellt, dass keine personenbezogenen Daten geloggt werden (DSGVO-Konformität).
+
+A. Datenerfassung (Logging)
+Du erstellst eine einfache Datenbank (oder eine CSV/JSON-Datei), in die bei jeder Anfrage folgende Felder geschrieben werden:
+
+Timestamp: Wann wurde gefragt?
+
+User Query: Was war die exakte Frage?
+
+Extracted Entity: Welcher Champion/Item wurde erkannt (z. B. "Akshan")?
+
+Sentiment/Feedback: Ein Daumen-hoch/runter Button in Streamlit.
+
+Response Time: Wie lange hat Ollama gebraucht?
+
+B. Auswertung (Analytics)
+Mit diesen Daten kannst du folgende Fragen beantworten:
+
+Trend-Analyse: Welche Champions werden nach einem Patch am häufigsten abgefragt? (Meta-Interesse)
+
+Knowledge Gaps: Wo gibt der Bot die Antwort "Dazu liegen mir keine Informationen vor"? (Hier fehlen Daten im Scraper).
+
+User Intent: Suchen Nutzer eher nach Zahlen (Stats) oder nach Erklärungen (Mechaniken)?
