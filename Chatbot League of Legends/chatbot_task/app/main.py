@@ -14,7 +14,7 @@ question = st.text_input("Frage etwas zu LoL Patches:")
 if question:
     try:
         with st.spinner("Suche relevante Infos..."):
-            context = retrieve_context(question)
+            context = retrieve_context(question, n_results=10)
             st.write("Retriever erfolgreich, Kontext erhalten")  # Debug
 
         with st.spinner("Generiere Antwort..."):

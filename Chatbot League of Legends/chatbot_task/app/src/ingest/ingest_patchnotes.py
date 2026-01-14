@@ -3,71 +3,79 @@ import requests
 import chromadb
 import os
 
-# --- 1. PFADE AUTOMATISCH ERMITTELN ---
-# Ermittelt den Ordner, in dem das Projekt liegt (chatbot_task)
+# --- PFADE ---
+# Die JSON-Datei, die dein Scraper gerade erstellt hat
+PATCH_FILE = r"C:\Users\Dominik\Dm-build-your-own-chatbot-stud\Chatbot League of Legends\chatbot_task\app\src\data\patch_scraped.json"
+
+# Der Pfad, wo die Datenbank liegen soll (zwei Ebenen über dem data-Ordner oder absolut)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CHROMA_PATH = r"C:\Users\Dominik\Dm-build-your-own-chatbot-stud\Chatbot League of Legends\chatbot_task\app\src\chroma_db"
 
-# Pfad zur JSON-Datei (liegt im Ordner 'data' im Hauptverzeichnis)
-PATCH_FILE = os.path.join(BASE_DIR, "data", "patch_14_2.json")
-
-# Pfad zur Datenbank (wird im Hauptverzeichnis erstellt)
-CHROMA_PATH = os.path.join(BASE_DIR, "chroma_db")
-
-# --- 2. KONFIGURATION ---
+# --- KONFIGURATION ---
 COLLECTION_NAME = "patchnotes"
-# WICHTIG: 127.0.0.1 statt 'ollama', da wir lokal auf Windows sind
 OLLAMA_EMBED_URL = "http://127.0.0.1:11434/api/embed"
 EMBED_MODEL = "nomic-embed-text"
 
-print(f"--- DEBUG INFOS ---")
-print(f"Projekt-Verzeichnis: {BASE_DIR}")
-print(f"Suche JSON-Datei in: {PATCH_FILE}")
-print(f"Datenbank wird gespeichert in: {CHROMA_PATH}")
-print(f"Nutze Ollama URL: {OLLAMA_EMBED_URL}")
-print(f"-------------------\n")
+def ingest_data():
+    print("--- INGESTION START ---")
+    
+    # 1. Datenbank initialisieren
+    client = chromadb.PersistentClient(path=CHROMA_PATH)
+    
+    # Alte Daten löschen, um sauber neu zu starten
+    try:
+        client.delete_collection(name=COLLECTION_NAME)
+        print("Alte Datenbank-Collection gelöscht.")
+    except:
+        pass
+    
+    collection = client.get_or_create_collection(name=COLLECTION_NAME)
 
-# --- 3. DATENBANK VORBEREITEN ---
-# Falls der Ordner nicht existiert, wird er von Chroma automatisch erstellt
-client = chromadb.PersistentClient(path=CHROMA_PATH)
-collection = client.get_or_create_collection(name=COLLECTION_NAME)
+    # 2. JSON laden
+    if not os.path.exists(PATCH_FILE):
+        print(f"FEHLER: Datei nicht gefunden unter {PATCH_FILE}")
+        return
 
-# --- 4. JSON LADEN ---
-if not os.path.exists(PATCH_FILE):
-    print(f"FEHLER: Die Datei {PATCH_FILE} wurde nicht gefunden!")
-else:
     with open(PATCH_FILE, "r", encoding="utf-8") as f:
         patch_data = json.load(f)
 
-    patch_version = patch_data.get("patch", "unknown")
-    print(f"Starte Ingestion für Patch {patch_version}...")
+    patch_version = patch_data.get("patch", "26.01")
+    content = patch_data.get("content", {})
 
-    # --- 5. DATEN VERARBEITEN UND SPEICHERN ---
-    for champion, changes in patch_data.get("champions", {}).items():
-        # Text zusammenbauen
-        text = f"Champion: {champion}. Changes: " + " ".join(changes)
+    # 3. Durch Kategorien und Einträge loopen
+    for category, entries in content.items():
+        print(f"\nVerarbeite Kategorie: {category}")
         
-        print(f"Erstelle Embedding für {champion}...")
+        for name, details in entries.items():
+            # Kontext-Text zusammenbauen
+            
+            clean_details = details[:4000]
+            full_text = f"CHAMPION NAME: {name} {name} {name}\nKATEGORIE: {category}\nDETAILS: {clean_details}"
+            
+            print(f"  -> Erstelle Vektor für: {name}")
 
-        try:
-            # Embedding von Ollama holen
-            response = requests.post(
-                OLLAMA_EMBED_URL,
-                json={"model": EMBED_MODEL, "input": text},
-                timeout=120
-            )
-            response.raise_for_status()
-            embedding = response.json()["embeddings"][0]
+            try:
+                # Embedding von Ollama anfordern
+                response = requests.post(
+                    OLLAMA_EMBED_URL,
+                    json={"model": EMBED_MODEL, "input": full_text},
+                    timeout=60
+                )
+                response.raise_for_status()
+                embedding = response.json()["embeddings"][0]
 
-            # In ChromaDB speichern
-            collection.add(
-                documents=[text],
-                metadatas=[{"champion": champion, "patch": patch_version}],
-                ids=[f"{champion}_{patch_version}"],
-                embeddings=[embedding]
-            )
-        except Exception as e:
-            print(f"Fehler bei Champion {champion}: {e}")
+                # In ChromaDB speichern
+                collection.add(
+                    documents=[full_text],
+                    metadatas=[{"category": category, "name": name, "patch": patch_version}],
+                    ids=[f"{category}_{name}_{patch_version}".replace(" ", "_")],
+                    embeddings=[embedding]
+                )
+            except Exception as e:
+                print(f"    ❌ Fehler bei {name}: {e}")
 
-    print(f"\n✅ Ingestion abgeschlossen!")
-    print(f"Anzahl der Dokumente in der Datenbank: {collection.count()}")
-    print(f"Daten sind jetzt bereit für den Retriever.")
+    print("\n--- INGESTION ERFOLGREICH BEENDET ---")
+    print(f"Anzahl der Dokumente in der DB: {collection.count()}")
+
+if __name__ == "__main__":
+    ingest_data()
